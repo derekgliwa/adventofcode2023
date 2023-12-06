@@ -1,7 +1,7 @@
 import re
 
 def parse_mappings():
-  input_file = open('input.txt', 'r')
+  input_file = open('test_input.txt', 'r')
   input = input_file.read()
   lines = input.strip().split('\n\n')
   seeds = list(map(lambda x: int(x), re.split('\s', lines[0])[1:]))
