@@ -1,7 +1,7 @@
 import re
 
 def parse_mappings():
-  input_file = open('test_input.txt', 'r')
+  input_file = open('input.txt', 'r')
   input = input_file.read()
   lines = input.strip().split('\n\n')
   seeds = list(map(lambda x: int(x), re.split('\s', lines[0])[1:]))
@@ -17,125 +17,103 @@ def parse_mapping(mapping):
     current_mapping = sorted_mappings[i]
 
     if i == 0 and current_mapping['source'] > 0:
-      final_mappings.append({ 'source': 0, 'destination': 0, 'count': current_mapping['source'], 'destination_end': current_mapping['destination'] - 1, 'source_end': current_mapping['source'] - 1})
+      final_mappings.append({ 'source': 0, 'destination': 0, 'destination_end': current_mapping['source'] - 1, 'source_end': current_mapping['source'] - 1 })
     if i >= 0 and i < len(sorted_mappings) - 1:
       next_mapping = sorted_mappings[i+1]
-      if current_mapping['source'] + current_mapping['count'] < next_mapping['source']:
-        gap_mapping = { 'source': current_mapping['source'] + current_mapping['count'], 'destination': current_mapping['source'] + current_mapping['count'], 'count': next_mapping['source'] - (current_mapping['source'] + current_mapping['count']) }
+      if current_mapping['source_end'] + 1 < next_mapping['source']:
+        gap_mapping = { 'source': current_mapping['source_end'] + 1, 'destination': current_mapping['destination_end'] + 1, 'source_end': next_mapping['source'] - 1, 'destination_end': next_mapping['destination'] - 1 }
         final_mappings.append(gap_mapping)
+        i = i + 1
     final_mappings.append(current_mapping)
   return final_mappings
-
-def flatten_mapping(mappings):
-  flattened_mappings = mappings[0]
-  for i in range(1, len(mappings[0:2])):
-    sorted_mapping = mappings[i]
-    flattened_mappings = sorted(flattened_mappings, key=lambda x: x['destination'])
-    for mapping in sorted_mapping:
-      for j in range(len(flattened_mappings)):
-        # print(j)
-        print(flattened_mappings)
-        mapping_for_compare = flattened_mappings[j]
-        if mapping['source'] >= mapping_for_compare['destination']:
-          if mapping['source'] != mapping_for_compare['destination']: # insert one before overlap
-            new_mapping_count = mapping['source'] - mapping_for_compare['destination']
-            source_end= mapping_for_compare['source'] + new_mapping_count -1
-            destination_end= mapping_for_compare['destination'] + new_mapping_count -1
-            flattened_mappings = flattened_mappings[0:j] +[{ 'source': mapping_for_compare['source'], 'destination': mapping_for_compare['destination'], 'count': new_mapping_count, 'destination_end': destination_end, 'source_end': source_end }] + flattened_mappings[j:]
-            j = j + 1
-            mapping_for_compare = flattened_mappings[j]
-            mapping_for_compare['source'] = source_end + 1
-            mapping_for_compare['destination'] = destination_end + 1
-
-          if mapping['source_end'] < mapping_for_compare['destination_end']: # split into two
-            mapping_for_compare['source'] = mapping_for_compare['source'] + mapping['count']
-            mapping_for_compare['destination'] = mapping_for_compare['destination'] + mapping['count']
-            flattened_mappings = flattened_mappings[0:j] + [mapping] + flattened_mappings[j:]
-            j = j + 1
-
-          elif mapping['source_end'] == mapping_for_compare['destination_end']: # replace
-            mapping_for_compare['destination'] = mapping['destination']
-            mapping_for_compare['destination_end'] = mapping['destination_end']
-          # elif j + 1 < len(flattened_mappings): # dip into the next one
-          #   print('HELLOOOOO')
-          #   next_to_replace = flattened_mappings[j + 1]
-          #   while (mapping['source_end'] > next_to_replace['destination_end']):
-          #     if j + 1 >= len(flattened_mappings):
-          #       next_to_replace = None
-          #       break
-          #     deleted_mapping = flattened_mappings.pop(j + 1)
-          #     mapping_for_compare['source_end'] = deleted_mapping['source_end']
-          #     next_to_replace = flattened_mappings[j + 1]
-          #   if next_to_replace != None:
-          #     mapping_for_compare['destination'] = mapping['destination']
-          #     mapping_for_compare['destination_end'] = mapping['destination_end']
-          #     next_to_replace['source'] = mapping_for_compare['source_end'] + 1
-          else: # end of the road
-            mapping_for_compare['destination'] = mapping['destination']
-            mapping_for_compare['destination_end'] = mapping['destination_end']
-  flattened_mappings = sorted(flattened_mappings, key=lambda x: x['source'])
-  return flattened_mappings
-
-
-
-
 
 def calculate_mapping_row(row):
   destination, source, count = re.split('\s', row)
   return {
     'destination': int(destination),
     'source': int(source),
-    'count': int(count),
     'source_end': int(source) + int(count) - 1,
     'destination_end': int(destination) + int(count) - 1,
   }
 
-def find_seed_options(seed_range, mappings):
-  min_seed = seed_range[0]
-  max_seed = seed_range[1]
-  if len(mappings) == 0:
-    return { min_seed }
+def flatten_mapping(mappings):
+  while(len(mappings) > 1):
+    mappings = [merge_rows(mappings[0], mappings[1])] + mappings[2:]
+  return mappings[0]
 
-  seed_options = set()
-  for mapping in mappings[0]:
-    if min_seed >= mapping['source'] and max_seed < mapping['source'] + mapping['count']:
-      seed_options.add(min_seed)
-      return seed_options
-    elif min_seed >= mapping['source'] and max_seed >= mapping['source'] + mapping['count']:
-      seed_options.add(min_seed)
-      min_seed = mapping['source'] + mapping['count']
-    elif min_seed < mapping['source']:
-      if max_seed < mapping['source']:
-        return seed_options.union(find_seed_options((min_seed, max_seed), mappings[1:]))
-      elif max_seed >= mapping['source'] and max_seed < mapping['source'] + mapping['count']:
-        seed_options.union(find_seed_options(min_seed, mapping['source'] - 1), mappings[1:])
-        seed_options.add(mapping['source'])
-      elif max_seed >= mapping['source'] and max_seed >= mapping['source'] + mapping['count']:
-        seed_options.union(find_seed_options(min_seed, mapping['source'] - 1), mappings[1:])
-        seed_options.add(mapping['source'])
-        min_seed = mapping['source'] + mapping['count']
-  if min_seed != max_seed:
-    seed_options.add(min_seed)
-  return seed_options
+def merge_rows(left_mapping, right_mapping):
+  left_mapping = sorted(left_mapping, key=lambda x: x['destination'], reverse=True)
+  right_mapping = sorted(right_mapping, key=lambda x: x['source'], reverse=True)
+  merged_mappings = []
+  while len(right_mapping) > 0 or len(left_mapping) > 0:
+    if len(right_mapping) == 0:
+      merged_mappings.append(left_mapping.pop())
+      continue
+    if len(left_mapping) == 0:
+      merged_mappings.append(right_mapping.pop())
+      continue
+    right = right_mapping.pop()
+    left = left_mapping.pop()
+    if left['destination'] == right['source']: #start at same spot
+      if left['destination_end'] == right['source_end']: # replace
+        new_mapping = {
+          'source': left['source'],
+          'source_end': left['source_end'],
+          'destination': right['destination'],
+          'destination_end': right['destination_end']
+        }
+        merged_mappings.append(new_mapping)
+        continue
+      elif left['destination_end'] > right['source_end']: # use up all of right side
+        # NEED TO DEAL W DELTA HERE
+        delta = left['destination_end'] - right['source_end']
+        new_mapping = {
+          'source': left['source'],
+          'source_end': left['source_end'] - delta,
+          'destination': right['destination'],
+          'destination_end': right['destination_end']
+        }
+        merged_mappings.append(new_mapping)
+        left_mapping.append({
+          'source': left['source'] + (right['source_end'] - right['source']) + 1,
+          'source_end': left['source_end'] ,
+          'destination': right['source_end'] + 1,
+          'destination_end': left['destination_end']
+        })
+        continue
+      elif left['destination_end'] < right['source_end']: # use up all of right side
+        delta = right['source_end'] - left['destination_end']
+        new_mapping = {
+          'source': left['source'],
+          'source_end': left['source_end'],
+          'destination': right['destination'],
+          'destination_end': right['destination_end'] - delta
+        }
+        merged_mappings.append(new_mapping)
+        right_mapping.append({
+          'source': left['destination_end'] + 1,
+          'source_end': right['source_end'],
+          'destination': right['destination_end'] - delta + 1,
+          'destination_end': right['destination_end']
+        })
+        continue
+  return merged_mappings
 
 if __name__ == '__main__':
   mappings = parse_mappings()
   final_locations = []
   mappings_in_order = list(mappings['maps_in_order'])
   flattened_mappings = flatten_mapping(mappings_in_order)
-  print(flattened_mappings)
-  # for seed, seed_range in list(mappings['seeds']):
-  #   seed_options = find_seed_options((seed, seed + seed_range - 1), mappings_in_order)
-  #   print('seed_options')
-  #   print(seed_options)
-  #   for seed in seed_options:
-  #     print(seed)
-  #     start = seed
-  #     for sorted_mappings in mappings_in_order:
-  #       for mapping in sorted_mappings:
-  #         if start >= mapping['source'] and start < mapping['source'] + mapping['count']:
-  #           start = start + (mapping['destination'] - mapping['source'])
-  #           break
-  #     final_locations.append(start)
-  # print(min(final_locations))
+  flattened_mappings = list(sorted(flattened_mappings, key=lambda x: x['source']))
+
+  seeds_with_ranges = mappings['seeds']
+  final_locations = []
+  for seed_with_range in seeds_with_ranges:
+    min_seed = seed_with_range[0]
+    max_seed = seed_with_range[0] + seed_with_range[1] - 1
+    for mapping in flattened_mappings:
+      if mapping['source_end'] > min_seed and mapping['source'] < max_seed:
+        seed_value = max(min_seed, mapping['source'])
+        final_locations.append(mapping['destination'] + seed_value - mapping['source'])
+  print(min(final_locations))
 
