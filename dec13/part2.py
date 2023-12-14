@@ -2,8 +2,6 @@ import re
 from functools import reduce
 import numpy as np
 
-
-
 def parse_input():
   input_file = open('test_input.txt', 'r')
   input = input_file.read()
